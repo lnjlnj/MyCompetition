@@ -183,6 +183,7 @@ def collate_fn(data):
     return p_input_ids, p_attention_mask, token_types,ious,vfeats,vfeats_mask
 def collate_fn_test(data):
     p_input_ids, p_attention_mask, token_types,start_labels,end_labels,target,video_features= [],[],[],[],[],[],[]
+    p_input_ids_text = []
     for data_x in data:
         nums = 0
         video_ids = []
@@ -198,6 +199,8 @@ def collate_fn_test(data):
                 if video['video_id'] == x['video_id']:
                     target.append(nums)
                     input_id,attention= [tokenizer.cls_token_id],[]
+                    input_id_text = []
+
                     sub = x['video_sub_title']
                     min_start = 10000
                     min_end = 10000
@@ -214,6 +217,7 @@ def collate_fn_test(data):
                             min_end = abs(sub[s]['start']+sub[s]['duration']-x['end_second'])
 
                     text = x['question']
+                    input_id_text.extend(text)
                     text = tokenizer(text)
                     input_id.extend(text.input_ids)
                     token_type = [0]*(len(input_id)-1)+[1]
@@ -221,9 +225,11 @@ def collate_fn_test(data):
                     for s in range(len(sub)):
                         if s == start_id:
                             start_label = sum(token_type)-1
+                        ids_text = sub[s]['text']
                         ids = tokenizer(sub[s]['text']).input_ids[1:]
                         token_type.extend([0]*(len(ids)-1))
                         token_type.extend([1])
+                        input_id_text.extend(ids_text)
                         input_id.extend(ids)
                         if s == end_id:
                             end_label = sum(token_type)-1
@@ -234,6 +240,7 @@ def collate_fn_test(data):
                                                     i1=[x["start_second"], x["end_second"]])
                                 ious.append(iou)
                     attention = [1] * len(input_id)
+                    p_input_ids_text.append(input_id_text)
                     p_input_ids.append(input_id)
                     p_attention_mask.append(attention)
 
@@ -242,22 +249,27 @@ def collate_fn_test(data):
                     token_types.append(token_type)
                 else:
                     input_id, attention = [tokenizer.cls_token_id], []
+                    input_id_text = []
                     sub = video['video_sub_title']
                     min_start = 10000
                     min_end = 10000
 
                     text = x['question']
+                    input_id_text.extend(text)
                     text = tokenizer(text)
                     input_id.extend(text.input_ids)
                     token_type = [0] * (len(input_id) - 1) + [1]
                     ious = []
                     for s in range(len(sub)):
+                        ids_text = sub[s]['text']
                         ids = tokenizer(sub[s]['text']).input_ids[1:]
+                        input_id_text.extend(ids_text)
                         token_type.extend([0] * (len(ids) - 1))
                         token_type.extend([1])
                         input_id.extend(ids)
 
                     attention = [1] * len(input_id)
+                    p_input_ids_text.append(input_id_text)
                     p_input_ids.append(input_id)
                     p_attention_mask.append(attention)
 
@@ -272,7 +284,7 @@ def collate_fn_test(data):
     token_types = [torch.tensor(token_type) for token_type in token_types]
     ious = torch.tensor(ious)
     target = torch.tensor(target)
-    return p_input_ids, p_attention_mask, token_types,ious,target,vfeats,vfeats_mask
+    return p_input_ids, p_attention_mask, token_types,ious,target,vfeats,vfeats_mask, p_input_ids_text
 
 
 class AverageMeter:  # 为了tqdm实时显示loss和acc
@@ -358,7 +370,7 @@ def test_model(model, val_loader):  # 验证
 
     acc, mrr, iou_1s, iou_10s, iou_100s = [],[],[],[],[]
     tk = tqdm(val_loader, total=len(val_loader), position=0, leave=True)
-    for step, (input_ids, attention_mask, token_types,ious,target,vfeats,vfeats_mask) in enumerate(tk):
+    for step, (input_ids, attention_mask, token_types,ious,target,vfeats,vfeats_mask, input_ids_text) in enumerate(tk):
         logits = []
         ps,pe = [],[]
         ns_dict = {}
@@ -430,7 +442,7 @@ if __name__ == '__main__':
     parser.add_argument("--lr", default=1e-5, type=float)
     parser.add_argument("--num_workers", default=0, type=int)
     parser.add_argument("--weight_decay", default=0, type=float)
-    parser.add_argument("--device", default=1, type=float)
+    parser.add_argument("--device", default=0, type=float)
     args = parser.parse_args()
     CFG = {
         'seed': args.seed,
@@ -502,7 +514,7 @@ if __name__ == '__main__':
 
 
     for epoch in range(CFG['epochs']):
-        loss = train_model(model,train_loader)
+        # loss = train_model(model,train_loader)
         iou_1s, iou_10s, iou_100s, mrr, acc = test_model(model, val_loader)
 
         r1i3 = calculate_iou_accuracy(iou_1s, threshold=0.3)

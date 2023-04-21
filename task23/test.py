@@ -200,7 +200,7 @@ if __name__ == '__main__':
 
     from model import GlobalSpanModel
     model = GlobalSpanModel(CFG['model'],768)
-    model.load_state_dict(torch.load('/home/hnu1/.ss/NLPCC/task23/log/Global-Span/12_0.6_27.028787167554512model/pytorch_model.bin')) #训练完成的模型
+    model.load_state_dict(torch.load('/home/ubuntu/sda_8T/codespace/new_lei/MyCompetition/task23/log/Global-Span2023_04_20_21_41_41/9_0.4782608695652174_24.978025118599135model/pytorch_model.bin')) #训练完成的模型
 
 
     model = model.to(device)
