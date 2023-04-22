@@ -514,7 +514,7 @@ if __name__ == '__main__':
 
 
     for epoch in range(CFG['epochs']):
-        # loss = train_model(model,train_loader)
+        loss = train_model(model,train_loader)
         iou_1s, iou_10s, iou_100s, mrr, acc = test_model(model, val_loader)
 
         r1i3 = calculate_iou_accuracy(iou_1s, threshold=0.3)
